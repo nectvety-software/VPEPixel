@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Build products (PyInstaller dist + work paths, ~400 MB)
+output/
+build/
+dist/
+*.manifest
+
+# OS / editor noise
+Thumbs.db
+.DS_Store
+*.log
