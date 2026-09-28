@@ -1,6 +1,6 @@
 ---
 name: vpe-game-assets
-description: Integrate VXP Pixel Editor .vpe (VPE565 / RGB565) assets into a game or app pipeline. Use when converting, packing or loading sprites, titlesets, tilesets or textures from a `Documents\VPE Pixel` folder or any `.vpe` files - decode to PNG, build spritesheet atlases with JSON metadata, emit uniform tileset sheets, generate embedded C/Python/JS/JSON pixel headers for engine-less targets, or write engine loaders for Godot, Pygame, HTML canvas, Unity and LuaS30/MRE.
+description: Integrate VXP Pixel Editor .vpe (VPE565 / RGB565) and .vpea (VPEA01 animation) assets into a game or app pipeline. Use when converting, packing or loading sprites, sprite animation scenes, titlesets, tilesets or textures from a `Documents\VPE Pixel` folder or any `.vpe` / `.vpea` files - decode to PNG, build spritesheet atlases with JSON metadata, emit uniform tileset sheets, generate embedded C/Python/JS/JSON pixel headers for engine-less targets, or write engine loaders for Godot, Pygame, HTML canvas, Unity and LuaS30/MRE.
 ---
 
 # VPE game asset integration
@@ -8,9 +8,11 @@ description: Integrate VXP Pixel Editor .vpe (VPE565 / RGB565) assets into a gam
 ## Overview
 
 `.vpe` files are VPE565: raw RGB565 bitmaps with no alpha and no engine-specific
-encoding. This skill turns them into whatever the target engine needs - PNG
+encoding; `.vpea` files are VPEA01 - the same bitmaps, N frames of one size in
+one file. This skill turns them into whatever the target engine needs - PNG
 spritesheets, tileset sheets, or embedded pixel arrays - with a stdlib-only CLI
-that runs in any project (no PySide6, no Pillow).
+that runs in any project (no PySide6, no Pillow). Animations expand to one
+atlas entry per frame.
 
 ## Format facts that drive every decision
 
@@ -18,7 +20,8 @@ that runs in any project (no PySide6, no Pillow).
 |------|-------------|
 | Header: `VPE565` + `u16 ver=1` + `u16 w` + `u16 h` + `u32 payload`, then `w*h` little-endian `u16` | 16 bytes + `w*h*2` exactly; any other size means corruption, not a variant |
 | RGB565, 5/6/5 bits, no alpha channel | "Transparent" is an *editor convention*: white (`0xFFFF`). Never assume it in the engine - opt in with `--transparent-white` |
-| Max 640x640, one image per file | A sprite *animation* is multiple files; a *layered* image does not exist |
+| Max 640x640, one image per file | A sprite *animation* is either several files or one `.vpea` (below) |
+| `.vpea` = VPEA01: 20-byte header (`VPEA01` + `u16 ver=1` + `u16 w` + `u16 h` + `u16 frameCount` + `u16 delayMs` + `u8 loop` + 3 zero bytes) then `frameCount` complete VPE565 blobs of `16+w*h*2` bytes | One file holds the whole scene; every frame is the same size, so an atlas can pack them as a row. `tools/play_animations.py` in the editor repo is the reference player |
 | Channel restore is `(v>>11)*8, ((v>>5)&63)*4, (v&31)*8` | Pure `*8/*4` expansion loses low bits; use it consistently in loader and shader alike |
 | Row-major, top row first, no padding | Line stride is `w*2` bytes, never 4-byte aligned - do not feed directly to APIs requiring pitch alignment |
 | `rgb(252..255, 252..255, 252..255)` all collapse to `0xFFFF` | When *authoring* solid tiles/textures, keep the brightest highlight at `rgb(246, 252, 255)` or below, or the editor's white-key will punch holes in it |
@@ -58,11 +61,12 @@ stdout.
 ### 1. Verify before building anything
 
 ```bash
-python scripts/vpe_tool.py inspect "Documents/VPE Pixel/sprite"/*.vpe
+python scripts/vpe_tool.py inspect "Documents/VPE Pixel/sprite"/*.vpe *.vpea
 ```
 
-Prints `name  WxH  bytes`. Use this first - a wrong assumption about size is the
-most common cause of a broken atlas.
+Prints `name  WxH  images=N  bytes`, plus `N-frame animation @delay ms loop=…`
+for `.vpea`. Use this first - a wrong assumption about size is the most common
+cause of a broken atlas.
 
 ### 2. One-shot PNGs (quick look, engine-native import folders)
 
@@ -90,13 +94,17 @@ area. Output JSON:
   "transparentWhite": true, "format": "VPE565/RGB565 -> RGBA8",
   "frames": [ { "filename": "hero_idle.vpe",
                 "textureRect": { "x": 0, "y": 0, "w": 16, "h": 16 } },
-              { "filename": "hero_run_0.vpe",
-                "textureRect": { "x": 17, "y": 0, "w": 16, "h": 16 } } ] }
+              { "filename": "knight_attack_01", "source": "knight_attack.vpea",
+                "frame": 1, "frameCount": 8, "delayMs": 90, "loop": false,
+                "textureRect": { "x": 33, "y": 0, "w": 32, "h": 32 } } ] }
 ```
 
-`filename` keeps the `.vpe` extension, so key the runtime lookup on
-`Path(f["filename"]).stem`. Frames arrive sorted by descending height - do not
-assume alphabetical order matches the array index.
+`filename` keeps the `.vpe` extension for stills, so key the runtime lookup on
+`Path(f["filename"]).stem`. Frames arriving from a `.vpea` are the exception:
+they are named `<stem>_NN` and carry `source` / `frame` / `frameCount` /
+`delayMs` / `loop` - group by `source`, sort by `frame`, and drive playback from
+`delayMs` (that is how the editor's own timeline does it). Frames arrive sorted
+by descending height - do not assume alphabetical order matches the array index.
 
 ### 4. Tileset sheet (uniform tiles only)
 

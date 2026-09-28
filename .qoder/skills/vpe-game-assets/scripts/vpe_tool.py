@@ -67,19 +67,23 @@ def decode_vpea(blob: bytes) -> Tuple[int, int, List[List[int]], int, bool]:
 
 
 def frames_of(path: Path) -> List[Tuple[str, int, int, List[int], Optional[dict]]]:
-    """Every image a file contributes: (entry name, w, h, pixels, animation meta)."""
+    """Every image a file contributes: (entry name, w, h, pixels, animation meta).
+
+    Stills keep their file name (`.vpe` included) because existing engine lookups
+    key on it; only expanded animation frames get a `<stem>_NN` name.
+    """
     p = Path(path)
     blob = p.read_bytes()
     if blob[:6] == ANIM_MAGIC:
         w, h, frames, delay, loop = decode_vpea(blob)
         if len(frames) == 1:
-            return [(p.stem, w, h, frames[0], None)]
+            return [(p.name, w, h, frames[0], None)]
         return [(f"{p.stem}_{i:02d}", w, h, f,
                  {"source": p.name, "frame": i, "frameCount": len(frames),
                   "delayMs": delay, "loop": loop})
                 for i, f in enumerate(frames)]
     w, h, px = decode_vpe(blob)
-    return [(p.stem, w, h, px, None)]
+    return [(p.name, w, h, px, None)]
 
 
 def c565_to_rgb(v: int) -> Tuple[int, int, int]:
@@ -209,15 +213,16 @@ def cmd_png(a: argparse.Namespace) -> int:
         except (OSError, VpeError) as e:
             print(f"ERROR  {p}: {e}")
             continue
-        for name, w, h, px, _meta in frames:
+        for name, w, h, px, meta in frames:
             rgba = to_rgba(w, h, px, a.transparent_white)
             rgba, w, h = scale_rgba(rgba, w, h, a.scale)
+            base = p.stem if meta is None else name
             if a.out:
                 dest = Path(a.out)
-                dest = (dest / (name + ".png") if dest.is_dir() or len(frames) > 1
+                dest = (dest / (base + ".png") if (dest.is_dir() or len(frames) > 1)
                         else dest)
             else:
-                dest = p.with_name(name + ".png")
+                dest = p.with_name(base + ".png")
             write_png(dest, w, h, rgba)
             print(f"OK  {dest}  {w}x{h}")
     return 0

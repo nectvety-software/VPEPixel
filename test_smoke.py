@@ -322,7 +322,9 @@ def test_vpe_tool() -> None:
                                            [0x001F, 0x001F]]
         assert got[1][4] == {"source": "slash.vpea", "frame": 1, "frameCount": 3,
                              "delayMs": 90, "loop": False}
-        assert t.frames_of(Path(td) / "still.vpe")[0][4] is None
+        still = t.frames_of(Path(td) / "still.vpe")
+        assert still[0][0] == "still.vpe", "stills keep the file name engines key on"
+        assert still[0][4] is None
         assert [f.name for f in t.collect_dir(Path(td))] == ["slash.vpea", "still.vpe"]
         assert t.cmd_header(argparse.Namespace(file=str(anim), lang="py",
                                                name=None, out=None)) == 2
@@ -608,6 +610,32 @@ def test_animation_ui() -> None:
         from PySide6.QtGui import QImage
         assert (QImage(str(strip)).width(), QImage(str(strip)).height()) == (24, 4)
 
+        # The File/Animation menu actions, with only the path picker stubbed out
+        import struct as _st
+        from PySide6.QtWidgets import QFileDialog
+
+        doc = win._doc
+        answers: list[str] = []
+        QFileDialog.getSaveFileName = staticmethod(lambda *a, **k: (answers[-1], ""))
+
+        answers.append(str(Path(td) / "menu_strip.png"))
+        win._export_strip()
+        blob = (Path(td) / "menu_strip.png").read_bytes()
+        assert _st.unpack_from(">II", blob, 16) == (doc.width * doc.frame_count(),
+                                                   doc.height), "strip is one row"
+        assert blob[25] == 6, "strip carries an alpha channel"
+
+        answers.append(str(Path(td) / "menu.png"))
+        win._export_png()
+        assert _st.unpack_from(">II", (Path(td) / "menu.png").read_bytes(), 16) \
+            == (doc.width, doc.height), "PNG exports the current frame only"
+
+        answers.append(str(Path(td) / "menu.bmp"))
+        win._export_bmp()
+        bb = (Path(td) / "menu.bmp").read_bytes()
+        assert _st.unpack_from("<ii", bb, 18) == (doc.width, doc.height)
+        assert _st.unpack_from("<H", bb, 28)[0] == 24, "24-bit BMP"
+
     assert selected_ext("Animation (*.vpea)", ".vpe") == ".vpea"
     assert selected_ext("Still frame (*.vpe)", ".vpe") == ".vpe"
     assert selected_ext("VPE Files (*.vpe *.vpea)", ".vpea") == ".vpea"
@@ -615,7 +643,7 @@ def test_animation_ui() -> None:
 
     win._doc.dirty = False                            # closeEvent asks if dirty
     win.close()
-    print("  OK animation timeline + onion skin + .vpea roundtrip")
+    print("  OK animation timeline + onion skin + .vpea roundtrip + menu exports")
 
 
 def test_knight_sample() -> None:
