@@ -33,6 +33,37 @@ rebuilt as an enterprise-style desktop app with Qt for Python.
   knight test set (idle 4 / walk 4 / attack 8 / block 3 / skill 6 = 25 frames in 5 `.vpea`
   animations, plus 3 standalone slash, shield-flash and shockwave FX sequences) and
   scaled-up contact-sheet PNGs for review
+- **Effect animation generator** — `python tools/make_effect_anim.py` draws 7 reusable skill
+  effects (fireball 6 / explosion 7 / lightning 5 / cast circle 8 / ice shards 5 / poison
+  cloud 6 / heal sparkle 5 = 42 frames) as `.vpea` into `Documents\VPE Pixel\sprite\effect\`,
+  exporting per-scene strips to `exports\effect\` and a review sheet to `exports\effect_sheet_all.png`
+- **Player animation generator** — `python tools/make_player_anim.py` turns the shipped 16×16
+  hero stills into 28 playable `.vpea` scenes (4 directions × idle 4 / walk 4 / run 4 /
+  attack 4 / cast 5 / hurt 3 / die 5 = 116 frames) in `Documents\VPE Pixel\sprite\characters\player\`,
+  with strips in `exports\player\` and one review sheet per direction
+- **Boss animation generator** — `python tools/make_dragon_anim.py` draws the dragon boss as
+  8 `.vpea` scenes at 48×48 (idle 4 / walk 4 / fly 4 / bite 4 / breath 6 / slam 5 / hurt 3 /
+  die 6 = 36 frames) in `Documents\VPE Pixel\sprite\enemies\boss\`, with strips and an atlas in
+  `exports\boss\` and one contact sheet for the whole set. `python tools/make_golem_anim.py`
+  adds the stone golem the same way (idle 4 / walk 4 / roar 4 / slam 5 / boulder 6 / beam 6 /
+  hurt 3 / die 6 = 38 frames), `python tools/make_slime_anim.py` the slime king
+  (idle 4 / hop 4 / slide 4 / attack 4 / split 5 / spit 6 / hurt 3 / die 6 = 36 frames),
+  `python tools/make_wizard_anim.py` the ice wizard
+  (idle 4 / walk 4 / cast 5 / bolt 6 / blizzard 6 / freeze 6 / hurt 3 / die 6 = 40 frames)
+  and `python tools/make_scorpion_anim.py` the sand scorpion, the only horizontal boss of the
+  five (idle 4 / walk 4 / sting 5 / pinch 4 / venom 6 / burrow 6 / hurt 3 / die 6 = 38 frames).
+  Together: 40 scenes, 188 frames, one 659×735 atlas
+- **Fnynn map + sprite generator** — `python tools/make_fnynn_map.py` redraws the whole
+  top-down farm-RPG asset set for the `Fnynn` MRE game as 92 procedural sprites
+  (15 tiles `t_*` 16×16 + 77 sprites: 4 crops × 4 stages, trees/rocks/tufts/mushrooms,
+  seasonal flowers + berries, farmstead `h_*`, player 3 classes × 3 directions × 2 steps,
+  4 mobs × 2 frames, NPCs, items, `menu_bg`) into
+  `Documents\VPE Pixel\fnynn_map\tile\` and `...\sprite\` as `.png` + editable `.vpe`,
+  plus a labelled contact sheet and a 240×320 mock scene for review.
+  `python tools/make_fnynn_map.py --only t_grass,t_water` regenerates a subset.
+- **Fnynn animation generator** — `python tools/make_fnynn_anim.py` packs the same character
+  and monster rigs into `.vpa` frame strips (attack / cast / hurt / walk) consumed by the
+  game's `src/anim.h` loader
 - **`.vpe` integration skill** — `/vpe-game-assets` (`scripts/vpe_tool.py`) decodes, atlases,
   builds uniform tilesets and embeds assets for Godot / Pygame / HTML canvas / Unity / C-MRE projects
 - Light & Dark enterprise themes via **QSS** (`style/dark.qss`, `style/light.qss`)
@@ -161,6 +192,8 @@ Pixel_Editor/
 │   └── dialogs.py          # New canvas / New asset / About
 ├── tools/
 │   ├── make_samples.py     # procedural .vpe sample library (285 assets)
+│   ├── make_fnynn_map.py   # Fnynn farm-RPG tiles + sprites (92 assets)
+│   ├── make_fnynn_anim.py  # Fnynn .vpa animation strips
 │   └── make_vqeaf_icons.py # VQEAF OS system icons (24 assets)
 ├── docs/
 │   └── ASSET_TAXONOMY.md   # asset families, folder mapping, VPE565 limits

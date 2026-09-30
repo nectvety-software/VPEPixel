@@ -109,7 +109,61 @@ To watch a whole folder without opening files one by one, run
 `python tools/play_animations.py`. It loads every `.vpea` under the sprite
 library into this same window, starts the timeline's own playback, checks that
 each frame really gets painted, and writes `play_<scene>.gif` +
-`playback_filmstrip.png` into `Documents\VPE Pixel\exports\playback`.
+`playback_filmstrip.png` into `Documents\VPE Pixel\exports\playback`
+(`--dir` picks another folder, `--out` another destination).
+
+`python tools/make_effect_anim.py` fills `sprite\effect\` with seven reusable
+skill effects (fireball, explosion, lightning, cast circle, ice shards, poison
+cloud, heal sparkle) and writes their strips to `exports\effect\`; the knight
+set in `tools/make_knight_anim.py` does the same for character animation.
+
+`python tools/make_player_anim.py` does it for the player: it redraws the hero
+from the existing `td_hero_*` stills as 28 scenes — `hero_down_idle`,
+`hero_right_attack`, `hero_up_die` and so on, four directions times seven
+actions — into `sprite\characters\player\`, with per-scene strips in
+`exports\player\` and one review sheet per direction. `--only down,right`
+limits the run to the directions you are checking.
+
+`python tools/make_dragon_anim.py` does it for the boss: eight 48×48 scenes —
+`dragon_idle`, `dragon_walk`, `dragon_fly`, `dragon_bite`, `dragon_breath`,
+`dragon_slam`, `dragon_hurt`, `dragon_die` — written to
+`sprite\enemies\boss\`, with per-scene strips plus an atlas in `exports\boss\`
+and one contact sheet (`exports\boss_sheet_all.png`) for the whole set. Because
+the boss is built from parts (tail, legs, torso, wings, neck, head) and outlined
+in one pass at the end, `--only breath,slam` is the usual way to check a single
+attack without redrawing the sheet.
+
+`python tools/make_golem_anim.py` does it for the second boss: the same eight
+scene slots under `golem_` — `golem_idle`, `golem_walk`, `golem_roar`,
+`golem_slam`, `golem_boulder`, `golem_beam`, `golem_hurt`, `golem_die` — into
+`sprite\enemies\boss\` and `exports\golem_sheet_all.png`. It reuses the dragon's
+canvas and outline pass, so both bosses pack into one 74-frame atlas.
+
+`python tools/make_wizard_anim.py` adds the third boss — `wizard_idle`,
+`wizard_walk`, `wizard_cast`, `wizard_bolt`, `wizard_blizzard`, `wizard_freeze`,
+`wizard_hurt`, `wizard_die` (40 frames) into the same folder, taking the atlas to
+114 frames. Its body is cloth rather than rock, so the same `rim()` union pass
+needs the robe, the fur trim and the hood each in their own tone or they melt
+into one silhouette.
+
+`python tools/make_slime_anim.py` is the fourth (`slime_idle`, `_hop`, `_slide`,
+`_attack`, `_split`, `_spit`, `_hurt`, `_die`, 36 frames). It has no limbs at all:
+one `body()` shape function walks the rows and derives each row's half-width from
+a superellipse plus wobble harmonics, so every scene deforms the same creature
+instead of redrawing it.
+
+`python tools/make_scorpion_anim.py` is the fifth and the only horizontal boss of
+the set (`scorpion_idle`, `_walk`, `_sting`, `_pinch`, `_venom`, `_burrow`,
+`_hurt`, `_die`, 38 frames, atlas 188). The animal is drawn by one `scorpion()`
+pose function, and the tail is the interesting parameter: `curl` is not a scale
+but an *amount of turn*, so each of the five joints adds a share of a total sweep
+angle and raising or lowering the tail walks the barb along one arc. That is what
+keeps the sting readable without a single per-frame coordinate. A union `rim()`
+pass is unforgiving here — it separates parts only by *colour*, and a scorpion is
+nothing but segments — so the tail plates alternate lit and mid chitin with a
+dark ring at each joint, and the claws, legs, telson bulb and sand each own a
+tone. Sand, venom and the eyes stay outside the fill set: dust must not be
+outlined, and the glow is painted after the rim.
 
 ## Tips
 
@@ -132,9 +186,9 @@ everything below them, so you can group freely:
 
 ```
 sprite\characters\player\       tile\topdown\terrain\        texture\background\parallax\
-sprite\enemies\                 tile\side\platform\          texture\ui\
-sprite\items\icons\             tile\side\hazard\
-sprite\vfx\particles\           titleset\
+sprite\effect\                  tile\side\platform\          texture\ui\
+sprite\enemies\                 tile\side\hazard\
+sprite\items\icons\             sprite\vfx\particles\        titleset\
 ```
 
 A file's category comes from the nearest of those four folder names in its path,

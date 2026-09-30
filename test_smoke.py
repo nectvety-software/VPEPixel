@@ -682,13 +682,338 @@ def test_knight_sample() -> None:
     print("  OK knight animation sample")
 
 
+def test_effect_sample() -> None:
+    """tools/make_effect_anim.py: the sprite/effect set stays valid .vpea."""
+    sys.path.insert(0, str(ROOT / "tools"))
+    import make_effect_anim as E
+    from vpx_editor.vpea import header_of, load_vpea
+
+    expected = {"fx_fireball": 6, "fx_explosion": 7, "fx_lightning": 5,
+                "fx_cast_circle": 8, "fx_ice_shards": 5, "fx_poison_cloud": 6,
+                "fx_heal_sparkle": 5}
+    assert list(E.TIMING) == list(expected), "TIMING drifted from the effects"
+    assert E.FRAME_COUNTS == expected
+    palette = [getattr(E, n) for n in dir(E)
+               if n.isupper() and isinstance(getattr(E, n), int) and n != "WHITE"]
+    assert E.WHITE not in palette, "an FX colour collides with the transparency key"
+
+    for name, count in expected.items():
+        delay, loop = E.TIMING[name]
+        assert 10 <= delay <= 60000 and isinstance(loop, bool)
+        frames = E.build(name)
+        assert [f.px for f in frames] == [f.px for f in E.build(name)], name
+        for i, f in enumerate(frames):
+            assert (f.w, f.h) == (E.SIZE, E.SIZE)
+            ink = sum(1 for p in f.px if p != E.WHITE)
+            assert 20 < ink < E.SIZE * E.SIZE, f"{name} frame {i} ink={ink}"
+
+    folder = E.effect_dir()
+    for name in expected:
+        path = folder / f"{name}.vpea"
+        if not path.exists():          # generator has not run on this machine yet
+            continue
+        assert header_of(path)[:2] == (E.SIZE, E.SIZE)
+        w, h, pxs, delay, loop = load_vpea(path)
+        assert (w, h, delay, loop) == (E.SIZE, E.SIZE, *E.TIMING[name])
+        assert pxs == [f.px for f in E.build(name)], f"{name} on disk is stale"
+    print("  OK effect animation sample")
+
+
+def test_player_sample() -> None:
+    """tools/make_player_anim.py: the hero scenes stay valid, 4 directions."""
+    sys.path.insert(0, str(ROOT / "tools"))
+    import make_player_anim as P
+    from vpx_editor.vpea import header_of, load_vpea
+
+    assert list(P.ACTIONS) == ["idle", "walk", "run", "attack", "cast",
+                               "hurt", "die"]
+    assert P.DIRS == ("down", "left", "up", "right")
+    names = P.scene_names()
+    assert len(names) == 28 and len(set(names)) == 28
+    palette = [getattr(P, n) for n in dir(P)
+               if n.isupper() and isinstance(getattr(P, n), int) and n != "WHITE"]
+    assert P.WHITE not in palette, "a prop colour collides with the transparency key"
+    assert sum(P.ACTIONS[a][0] for a in P.ACTIONS) * len(P.DIRS) == 116
+
+    for name in names:
+        d, action = P.split(name)
+        count, delay, loop = P.ACTIONS[action]
+        assert 10 <= delay <= 60000 and isinstance(loop, bool)
+        frames = P.build(name)
+        assert len(frames) == count, name
+        assert [f.px for f in frames] == [f.px for f in P.build(name)], name
+        for i, f in enumerate(frames):
+            assert (f.w, f.h) == (P.SIZE, P.SIZE)
+            ink = sum(1 for p in f.px if p != P.WHITE)
+            assert 20 < ink < P.SIZE * P.SIZE, f"{name} frame {i} ink={ink}"
+
+    folder = P.player_dir()
+    for name in names:
+        path = folder / f"{name}.vpea"
+        if not path.exists():          # generator has not run on this machine yet
+            continue
+        assert header_of(path)[:2] == (P.SIZE, P.SIZE)
+        w, h, pxs, delay, loop = load_vpea(path)
+        count, want_delay, want_loop = P.ACTIONS[P.split(name)[1]]
+        assert (w, h, delay, loop) == (P.SIZE, P.SIZE, want_delay, want_loop)
+        assert len(pxs) == count
+        assert pxs == [f.px for f in P.build(name)], f"{name} on disk is stale"
+    print("  OK player animation sample")
+
+
+def test_dragon_sample() -> None:
+    """tools/make_dragon_anim.py: the 48x48 boss set stays valid .vpea."""
+    sys.path.insert(0, str(ROOT / "tools"))
+    import make_dragon_anim as D
+    from vpx_editor.vpea import header_of, load_vpea
+
+    expected = {"dragon_idle": 4, "dragon_walk": 4, "dragon_fly": 4,
+                "dragon_bite": 4, "dragon_breath": 6, "dragon_slam": 5,
+                "dragon_hurt": 3, "dragon_die": 6}
+    assert list(D.TIMING) == list(expected), "TIMING drifted from the boss scenes"
+    assert {n: D.TIMING[n][0] for n in D.TIMING} == expected
+    assert sum(expected.values()) == 36
+    assert D.SIZE == 48, "the boss must stay 3 tiles wide, not the hero's 16"
+    palette = [getattr(D, n) for n in dir(D)
+               if n.isupper() and isinstance(getattr(D, n), int) and n != "WHITE"]
+    assert D.WHITE not in palette, "a boss colour collides with the transparency key"
+
+    rimmed = D.GREEN["out"]
+    for name, count in expected.items():
+        _n, delay, loop = D.TIMING[name]
+        assert 10 <= delay <= 60000 and isinstance(loop, bool)
+        frames = D.build(name)
+        assert len(frames) == count
+        assert [f.px for f in frames] == [f.px for f in D.build(name)], name
+        for i, f in enumerate(frames):
+            assert (f.w, f.h) == (D.SIZE, D.SIZE)
+            ink = sum(1 for p in f.px if p != D.WHITE)
+            assert 200 < ink < D.SIZE * D.SIZE, f"{name} frame {i} ink={ink}"
+            # rim() is the only outline pass - a frame without it has no silhouette
+            assert sum(1 for p in f.px if p == rimmed) > 60, f"{name} frame {i}"
+
+    folder = D.boss_dir()
+    for name in expected:
+        path = folder / f"{name}.vpea"
+        if not path.exists():          # generator has not run on this machine yet
+            continue
+        assert header_of(path)[:2] == (D.SIZE, D.SIZE)
+        w, h, pxs, delay, loop = load_vpea(path)
+        assert (w, h, delay, loop) == (D.SIZE, D.SIZE, *D.TIMING[name][1:])
+        assert len(pxs) == D.TIMING[name][0]
+        assert pxs == [f.px for f in D.build(name)], f"{name} on disk is stale"
+    print("  OK dragon boss sample")
+
+
+def test_golem_sample() -> None:
+    """tools/make_golem_anim.py: the stone boss set stays valid .vpea."""
+    sys.path.insert(0, str(ROOT / "tools"))
+    import make_golem_anim as G
+    from vpx_editor.vpea import header_of, load_vpea
+
+    expected = {"golem_idle": 4, "golem_walk": 4, "golem_roar": 4,
+                "golem_slam": 5, "golem_boulder": 6, "golem_beam": 6,
+                "golem_hurt": 3, "golem_die": 6}
+    assert list(G.TIMING) == list(expected), "TIMING drifted from the boss scenes"
+    assert {n: G.TIMING[n][0] for n in G.TIMING} == expected
+    assert sum(expected.values()) == 38
+    assert G.SIZE == 48, "the golem shares the dragon's 3-tile boss canvas"
+    assert G.STONE["out"] != G.WHITE
+
+    rimmed = G.STONE["out"]
+    for name, count in expected.items():
+        _n, delay, loop = G.TIMING[name]
+        assert 10 <= delay <= 60000 and isinstance(loop, bool)
+        frames = G.build(name)
+        assert len(frames) == count
+        assert [f.px for f in frames] == [f.px for f in G.build(name)], name
+        for i, f in enumerate(frames):
+            assert (f.w, f.h) == (G.SIZE, G.SIZE)
+            ink = sum(1 for p in f.px if p != G.WHITE)
+            assert 200 < ink < G.SIZE * G.SIZE, f"{name} frame {i} ink={ink}"
+            assert sum(1 for p in f.px if p == rimmed) > 60, f"{name} frame {i}"
+            # 0xFFFF is the transparent key: no stone tone may pack to it
+            assert G.WHITE not in {G.STONE[k] for k in G.FILLS}
+
+    folder = G.dz.boss_dir()
+    for name in expected:
+        path = folder / f"{name}.vpea"
+        if not path.exists():          # generator has not run on this machine yet
+            continue
+        assert header_of(path)[:2] == (G.SIZE, G.SIZE)
+        w, h, pxs, delay, loop = load_vpea(path)
+        assert (w, h, delay, loop) == (G.SIZE, G.SIZE, *G.TIMING[name][1:])
+        assert len(pxs) == G.TIMING[name][0]
+        assert pxs == [f.px for f in G.build(name)], f"{name} on disk is stale"
+    print("  OK golem boss sample")
+
+
+def test_wizard_sample() -> None:
+    """tools/make_wizard_anim.py: the ice wizard set stays valid .vpea."""
+    sys.path.insert(0, str(ROOT / "tools"))
+    import make_wizard_anim as W
+    from vpx_editor.vpea import header_of, load_vpea
+
+    expected = {"wizard_idle": 4, "wizard_walk": 4, "wizard_cast": 5,
+                "wizard_bolt": 6, "wizard_blizzard": 6, "wizard_freeze": 6,
+                "wizard_hurt": 3, "wizard_die": 6}
+    assert list(W.TIMING) == list(expected), "TIMING drifted from the boss scenes"
+    assert {n: W.TIMING[n][0] for n in W.TIMING} == expected
+    assert sum(expected.values()) == 40
+    assert W.SIZE == 48, "the wizard shares the 3-tile boss canvas"
+    assert W.PREFIX == "wizard_" and all(n.startswith(W.PREFIX) for n in W.TIMING)
+    # 0xFFFF is the transparent key: no cloth, ice or fur tone may pack to it
+    assert W.WHITE not in {W.ICE[k] for k in W.FILLS} and W.ICE["out"] != W.WHITE
+
+    rimmed = W.ICE["out"]
+    for name, count in expected.items():
+        _n, delay, loop = W.TIMING[name]
+        assert 10 <= delay <= 60000 and isinstance(loop, bool)
+        frames = W.build(name)
+        assert len(frames) == count
+        assert [f.px for f in frames] == [f.px for f in W.build(name)], name
+        for i, f in enumerate(frames):
+            assert (f.w, f.h) == (W.SIZE, W.SIZE)
+            ink = sum(1 for p in f.px if p != W.WHITE)
+            assert 200 < ink < W.SIZE * W.SIZE, f"{name} frame {i} ink={ink}"
+            assert sum(1 for p in f.px if p == rimmed) > 60, f"{name} frame {i}"
+
+    folder = W.dz.boss_dir()
+    for name in expected:
+        path = folder / f"{name}.vpea"
+        if not path.exists():          # generator has not run on this machine yet
+            continue
+        assert header_of(path)[:2] == (W.SIZE, W.SIZE)
+        w, h, pxs, delay, loop = load_vpea(path)
+        assert (w, h, delay, loop) == (W.SIZE, W.SIZE, *W.TIMING[name][1:])
+        assert len(pxs) == W.TIMING[name][0]
+        assert pxs == [f.px for f in W.build(name)], f"{name} on disk is stale"
+    print("  OK wizard boss sample")
+
+
+def test_scorpion_sample() -> None:
+    """tools/make_scorpion_anim.py: the sand scorpion set stays valid .vpea."""
+    sys.path.insert(0, str(ROOT / "tools"))
+    import make_scorpion_anim as S
+    from vpx_editor.vpea import header_of, load_vpea
+
+    expected = {"scorpion_idle": 4, "scorpion_walk": 4, "scorpion_sting": 5,
+                "scorpion_pinch": 4, "scorpion_venom": 6, "scorpion_burrow": 6,
+                "scorpion_hurt": 3, "scorpion_die": 6}
+    assert list(S.TIMING) == list(expected), "TIMING drifted from the boss scenes"
+    assert {n: S.TIMING[n][0] for n in S.TIMING} == expected
+    assert sum(expected.values()) == 38
+    assert S.SIZE == 48, "the scorpion shares the 3-tile boss canvas"
+    assert S.PREFIX == "scorpion_" and all(n.startswith(S.PREFIX) for n in S.TIMING)
+    # 0xFFFF is the transparent key: no chitin, sand or venom tone may pack to it
+    assert S.WHITE not in {S.CHITIN[k] for k in S.FILLS}
+    assert S.CHITIN["out"] != S.WHITE and S.WHITE not in S.SANDT
+    # A union rim only separates parts that differ in colour, so every part of
+    # this animal has to own a tone of its own.
+    assert len({S.CHITIN[k] for k in S.FILLS}) == len(S.FILLS)
+
+    rimmed = S.CHITIN["out"]
+    for name, count in expected.items():
+        _n, delay, loop = S.TIMING[name]
+        assert 10 <= delay <= 60000 and isinstance(loop, bool)
+        frames = S.build(name)
+        assert len(frames) == count
+        assert [f.px for f in frames] == [f.px for f in S.build(name)], name
+        for i, f in enumerate(frames):
+            assert (f.w, f.h) == (S.SIZE, S.SIZE)
+            ink = sum(1 for p in f.px if p != S.WHITE)
+            assert 200 < ink < S.SIZE * S.SIZE, f"{name} frame {i} ink={ink}"
+            # The burrow buries almost the whole silhouette, so the outline floor
+            # is low per frame; frame 0 of every scene carries all of it.
+            rimpx = sum(1 for p in f.px if p == rimmed)
+            assert rimpx > (150 if i == 0 else 30), f"{name} frame {i} rim={rimpx}"
+
+    folder = S.dz.boss_dir()
+    for name in expected:
+        path = folder / f"{name}.vpea"
+        if not path.exists():          # generator has not run on this machine yet
+            continue
+        assert header_of(path)[:2] == (S.SIZE, S.SIZE)
+        w, h, pxs, delay, loop = load_vpea(path)
+        assert (w, h, delay, loop) == (S.SIZE, S.SIZE, *S.TIMING[name][1:])
+        assert len(pxs) == S.TIMING[name][0]
+        assert pxs == [f.px for f in S.build(name)], f"{name} on disk is stale"
+    print("  OK scorpion boss sample")
+
+
+def test_fnynn_map_sample() -> None:
+    """tools/make_fnynn_map.py: the Fnynn tile+sprite set stays complete and valid."""
+    sys.path.insert(0, str(ROOT / "tools"))
+    import make_fnynn_map as M
+
+    A = M.build_all()
+    assert len(A) == 92, f"expected 15 tiles + 77 sprites, got {len(A)}"
+
+    def alphas(im):
+        px = im.load()
+        return [px[x, y][3] for y in range(im.height) for x in range(im.width)]
+
+    tiles = {k for k, (f, _im) in A.items() if f == "tile"}
+    assert len(tiles) == 15 and all(k.startswith("t_") for k in tiles)
+    for k in tiles:
+        im = A[k][1]
+        assert im.size == (16, 16), f"{k} must be a 16x16 tile"
+        holes = sum(1 for a in alphas(im) if a < 255)
+        if k == "t_grass_blades":     # the only tile drawn as a wind overlay
+            assert holes > 150, "the blade overlay should be mostly empty"
+        else:
+            assert holes == 0, f"{k} tile has holes"
+
+    # The ground is a two-tone checkerboard, so the pair has to stay distinct
+    # but stay in the same green family.
+    g0, g1 = A["t_grass"][1], A["t_grass2"][1]
+    assert g0.tobytes() != g1.tobytes()
+    for im in (g0, g1):
+        px = im.load()
+        rgb = [px[x, y][:3] for y in range(16) for x in range(16)]
+        assert max(c[1] for c in rgb) > max(c[0] for c in rgb) \
+            and max(c[1] for c in rgb) > max(c[2] for c in rgb), "grass drifted off-green"
+
+    for name, (_folder, im) in A.items():
+        if name in tiles:
+            continue
+        ink = sum(1 for a in alphas(im) if a >= 128)
+        assert 20 < ink <= im.width * im.height, f"{name} ink={ink}"
+
+    # Every crop has 4 stages and every character rig the directions the game asks for.
+    for kind in ("turnip", "potato", "tomato", "pumpkin"):
+        assert all(f"c_{kind}_{i}" in A for i in range(4)), kind
+    for cls in range(3):
+        for d in ("d", "u", "s"):
+            assert all(f"sd_c{cls}_{d}{i}" in A for i in range(2)), (cls, d)
+    for mob in ("slime", "skel", "fslime", "golem", "bat"):
+        assert f"m_{mob}" in A and f"m_{mob}_1" in A, mob
+
+    # Deterministic: re-running must not churn the exports.
+    B = M.build_all()
+    assert set(B) == set(A)
+    for k in A:
+        assert A[k][1].tobytes() == B[k][1].tobytes(), f"{k} is not deterministic"
+
+    # Anything already exported has to match the generator, not a stale draft.
+    for name, (folder, im) in A.items():
+        path = M.ROOT / folder / f"{name}.png"
+        if not path.exists():
+            continue
+        from PIL import Image
+        assert Image.open(path).convert("RGBA").tobytes() == im.tobytes(), f"{name}.png stale"
+    print("  OK Fnynn map + sprite sample")
+
+
 def main() -> int:
     print("VXP Pixel Editor - smoke tests")
     failures = 0
     for fn in (test_vpe_roundtrip, test_document, test_vpea_codec, test_gui_smoke,
                test_animation_ui, test_hover_titles, test_gallery, test_vpe_tool,
-               test_button_family, test_knight_sample, test_icons,
-               test_envcheck, test_installer):
+               test_button_family, test_knight_sample, test_effect_sample,
+               test_player_sample, test_dragon_sample, test_golem_sample,
+               test_wizard_sample, test_scorpion_sample, test_fnynn_map_sample,
+               test_icons, test_envcheck, test_installer):
         try:
             fn()
         except Exception as exc:

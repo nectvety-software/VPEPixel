@@ -244,7 +244,7 @@ def cmd_atlas(a: argparse.Namespace) -> int:
             print(f"ERROR  {p}: {e}")
             skipped += 1
             continue
-        animated += len(frames) - 1
+        animated += len(frames) if len(frames) > 1 else 0
         for name, w, h, px, meta in frames:
             rgba = to_rgba(w, h, px, a.transparent_white)
             rgba, w, h = scale_rgba(rgba, w, h, a.scale)

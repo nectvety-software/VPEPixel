@@ -36,15 +36,21 @@ Categories group further by genre, and the grouping is part of the shipped
 sample library, so grep for it rather than assuming a flat folder:
 
 ```
-sprite/characters/player/  sprite/enemies/  sprite/items/icons/  sprite/ui/hud/  sprite/vfx/particles/
+sprite/characters/player/       # td_hero_*.vpe stills + hero_<dir>_<action>.vpea scenes
+sprite/enemies/boss/            # dragon_ / golem_ / slime_ / wizard_ / scorpion_<action>.vpea, 48x48
+sprite/enemies/  sprite/items/icons/  sprite/ui/hud/  sprite/vfx/particles/
+sprite/effect/                # reusable skill FX as .vpea, one scene per file
 tile/topdown/{terrain,roads,architecture,interior,flora}/   tile/side/{platform,hazard}/
 texture/background/parallax/   texture/ui/
 ```
 
 Name prefixes carry the same information: `td_` top-down, `sp_` side-scroller,
-`bg_` parallax layer, `ic_` item icon, `hud_` UI, `fx_` particle. Every
+`bg_` parallax layer, `ic_` item icon, `hud_` UI, `fx_` particle or effect. Every
 `atlas`/`tileset` command accepts `--dir` at any depth, so pack one family at a
 time (`--dir .../sprite/characters/player`) instead of filtering a huge atlas.
+`atlas` expands a `.vpea` into one record per frame and keeps `source`,
+`frame`, `frameCount`, `delayMs` and `loop` in the JSON, so the stills and the
+animated hero can share one sheet and still be told apart by the loader.
 
 ## Workflow
 

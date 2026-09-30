@@ -27,10 +27,24 @@ be legible from four angles.
 | Item icons | `sprite/items/icons/` | bow, staff, helmet, armor, boots, potion, wood, meat, ore, gold | `ic_<name>` |
 | HUD | `sprite/ui/hud/` | cursor, button, slot, HP bar, MP bar (flat singles — for a full state machine see §1C) | `hud_<name>` |
 | Particles | `sprite/vfx/particles/` | dust, slash, magic bullet, sparkle | `fx_<name>_<frame>` |
+| Skill effects | `sprite/effect/` | fireball, explosion, lightning, cast circle, ice shards, poison cloud, heal sparkle (`.vpea`, 32×32) | `fx_<effect>.vpea` |
+| Hero scenes | `sprite/characters/player/` | the same top-down hero as playable animation: 4 directions × 7 actions (idle, walk, run, attack, cast, hurt, die), 116 frames (`.vpea`, 16×16) | `hero_<dir>_<action>.vpea` |
+| Boss scenes | `sprite/enemies/boss/` | five 3-tile bosses, 40 actions / 188 frames (`.vpea`, 48×48) | `<boss>_<action>.vpea` |
 
 The farming actions (`dig`, `water`, `fish`, `pickup`) exist because the genre
 pairs a top-down map with a tool belt — a walk cycle alone is not enough to
 drive that kind of game.
+
+The dragon runs idle / walk / fly / bite / breath / slam / hurt / die (36 frames),
+the stone golem idle / walk / roar / slam / boulder / beam / hurt / die (38), the
+slime king idle / hop / slide / attack / split / spit / hurt / die (36), the ice
+wizard idle / walk / cast / bolt / blizzard / freeze / hurt / die (40) and the
+sand scorpion idle / walk / sting / pinch / venom / burrow / hurt / die (38). All
+five share the 48×48 canvas and the same rim colour, and never share a
+silhouette: the golem, the wizard and the slime are upright masses, the dragon is
+a winged quadruped, and the scorpion is the only low, wide, eight-legged shape —
+the one whose attacks leave through the right column while its tail works the
+upper left.
 
 ### 1B. Side-scroller / platformer
 
@@ -121,8 +135,19 @@ or wrong.
 4. **Fixed frame counts.** Inside one atlas family the loop lengths are identical
    (walk 4, run 2, idle 2, single-shot actions 1–2); the animated knight set ships
    as `.vpea` and is not atlas-packed — idle 4 / walk 4 loop, attack 8 / block 3 /
-   skill 6 play once. Frames must be the same dimensions or the atlas packs them
-   wrong.
+   skill 6 play once. The `sprite/effect/` library follows the same rule per scene:
+   5–8 frames each with its own `loop` flag, so one effect is one family and never
+   a mixed row. `sprite/characters/player/` fixes its counts per action across all
+   four directions (idle / walk / run / attack 4, cast / die 5, hurt 3), so an
+   engine can index a direction without special-casing frame counts. The five bosses
+   in `sprite/enemies/boss/` are one file per action and obey the same contract:
+   idle 4, locomotion 4 (walk / fly / hop / slide), hurt 3, one 5-frame strike
+   (slam / cast / split / sting), the remaining two attacks and die 6 — dragon 36,
+   golem 38, slime 36, wizard 40, scorpion 38 frames. Every frame is the 48×48
+   canvas, which is 3 tiles wide on purpose so a boss cannot be packed into a
+   character atlas.
+   Frames must
+   be the same dimensions or the atlas packs them wrong.
 5. **Determinism.** Generation is seeded per asset name; never salt with
    `hash()`, which is randomised per process and would reshuffle the library on
    every run.
@@ -139,6 +164,7 @@ category roots like this:
 | `sprites/characters/player/idle.png` | `sprite/characters/player/td_hero_down_idle_0.vpe` |
 | `sprites/items/` | `sprite/items/icons/` |
 | `vfx/particles/` | `sprite/vfx/particles/` |
+| `vfx/effects/` (subject-independent) | `sprite/effect/` |
 | `tilesets/topdown/terrain/` | `tile/topdown/terrain/` |
 | `tilesets/platform/` | `tile/side/platform/` |
 | `textures/backgrounds/parallax/` | `texture/background/parallax/` |
@@ -157,9 +183,19 @@ Notes:
   their files flat — a project is a working document, not a library entry.
 - Animations use the `.vpea` container and keep one file per action, named
   `<subject>_<action>.vpea`: `sprite/characters/knight/knight_attack.vpea`,
-  `sprite/characters/knight/knight_idle.vpea`. Reusable effects live under
+  `sprite/characters/knight/knight_idle.vpea`. Where a facing direction changes
+  the drawing, the direction goes in the name: the playable hero ships 28 scenes
+  as `sprite/characters/player/hero_<dir>_<action>.vpea` beside the flat
+  `td_hero_*` stills it reuses the body from. Enemies that need their own silhouette
+  live one folder down in `sprite/enemies/boss/<boss>_<action>.vpea` — `dragon_`,
+  `golem_`, `slime_`, `wizard_`, `scorpion_` — next to the flat `td_<name>_*.vpe`
+  stills. Reusable effects live under
   `sprite/vfx/<subject>/fx_<effect>.vpea` so an engine can layer them on any
-  character. The gallery reads frame 0 for the thumbnail and shows `· 8F`.
+  character - `sprite/vfx/knight/` holds the knight's own slash arc, shield
+  flash and shockwave. A subject-independent effect library goes one level
+  higher in `sprite/effect/fx_<effect>.vpea` (fireball, explosion, lightning,
+  cast circle, ice shards, poison cloud, heal sparkle), and its exports land in
+  `exports/effect/`. The gallery reads frame 0 for the thumbnail and shows `· 8F`.
 
 ---
 
@@ -170,6 +206,15 @@ python tools/make_samples.py            # 285 game-art assets
 python tools/make_vqeaf_icons.py        # 24 VQEAF OS system icons
 python tools/make_ui_buttons.py         # 126 pressable-widget states (§1C)
 python tools/make_knight_anim.py        # 8 .vpea animations + 1 .vpe still + review sheets
+python tools/make_effect_anim.py        # 7 reusable .vpea effects -> sprite/effect + exports/effect
+python tools/make_player_anim.py        # 28 .vpea hero scenes (4 directions x 7 actions) -> sprite/characters/player
+python tools/make_dragon_anim.py        # 8 .vpea boss scenes (36 frames, 48x48) -> sprite/enemies/boss
+python tools/make_golem_anim.py         # 8 .vpea boss scenes (38 frames, 48x48) -> sprite/enemies/boss
+python tools/make_slime_anim.py         # 8 .vpea boss scenes (36 frames, 48x48) -> sprite/enemies/boss
+python tools/make_wizard_anim.py        # 8 .vpea boss scenes (40 frames, 48x48) -> sprite/enemies/boss
+python tools/make_scorpion_anim.py      # 8 .vpea boss scenes (38 frames, 48x48) -> sprite/enemies/boss
+python tools/make_fnynn_map.py          # 92 Fnynn assets (15 tiles + 77 sprites) -> fnynn_map/{tile,sprite} + sheets
+python tools/make_fnynn_anim.py         # Fnynn .vpa action strips for the same rigs
 python tools/play_animations.py         # play every .vpea through the editor, export preview GIFs
 python test_smoke.py                    # format + gallery + tool + widget checks
 python .qoder/skills/vpe-game-assets/scripts/vpe_tool.py atlas \
@@ -180,7 +225,11 @@ python .qoder/skills/vpe-game-assets/scripts/vpe_tool.py atlas \
     --out buttons.png --json buttons.json --transparent-white
 ```
 
-Both generators are deterministic and only write files whose names they own, so
+The generators are deterministic and only write files whose names they own, so
 hand-made art in the same tree survives a re-run. `PuzzleField/` is a saved
 sample *project* (18 files), not generator output — it sits beside the category
-roots to show what the editor's own save layout looks like.
+roots to show what the editor's own save layout. `fnynn_map/` is the same kind of
+project folder: one external game (`Fnynn`, 240×320 software-RGB565 MRE handset)
+consumes its PNGs directly through that game's own `png -> RGB565+mask .raw`
+packer, so the set stays flat and name-bound rather than moving into
+`sprite/`/`tile/`.

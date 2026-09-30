@@ -31,6 +31,13 @@ tools/
   make_ui_buttons.py        procedural button asset family
   make_vqeaf_screens.py     procedural VQEAF_OS screen mockups
   make_knight_anim.py       procedural .vpea animation set (sword + shield knight)
+  make_effect_anim.py       procedural .vpea skill-effect set -> sprite/effect + exports/effect
+  make_player_anim.py       procedural .vpea hero set: 4 directions x 7 actions -> sprite/characters/player
+  make_dragon_anim.py       procedural .vpea boss set: 8 scenes at 48x48 -> sprite/enemies/boss
+  make_golem_anim.py        procedural .vpea boss set: 8 scenes at 48x48, reuses the dragon's plumbing
+  make_slime_anim.py        procedural .vpea boss set: 8 scenes at 48x48, one limbless jelly body
+  make_wizard_anim.py       procedural .vpea boss set: 8 scenes at 48x48, same plumbing, cloth body
+  make_scorpion_anim.py     procedural .vpea boss set: 8 scenes at 48x48, horizontal pose function
   play_animations.py        drives real timeline playback, writes preview GIFs
 build_exe.spec              PyInstaller one-folder build
 build_onefile.spec          PyInstaller one-file build (the installer payload)
